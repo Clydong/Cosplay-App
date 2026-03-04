@@ -7,13 +7,13 @@ import {
   Image,
   ScrollView,
   StyleSheet,
+  SafeAreaView,
 } from "react-native";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import Button from "../components/Button";
 import placeholder from "../assets/placeholder.png";
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
+import { useTheme } from "../contexts/ThemeContext";
 
 function isValidHttpUrl(string) {
   try {
@@ -24,7 +24,6 @@ function isValidHttpUrl(string) {
   }
 }
 
-// Creates a fresh blank item row with a unique id
 function createItem() {
   return {
     id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -34,29 +33,21 @@ function createItem() {
   };
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
-
 export default function AddCosplayScreen({ navigation }) {
+  const { theme, spacing, fontSize, fontWeight, borderRadius, shadows } = useTheme();
   const [characterName, setCharacterName] = useState("");
   const [deadline, setDeadline] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [previewBroken, setPreviewBroken] = useState(false);
-
-  // Location is optional; the input is hidden until the user explicitly asks for it
   const [showLocation, setShowLocation] = useState(false);
   const [location, setLocation] = useState("");
-
-  // Start with one blank item row so the form never feels empty
   const [items, setItems] = useState([createItem()]);
-
-  // ── Item helpers ──────────────────────────────────────────────────
 
   const addItem = () => setItems((prev) => [...prev, createItem()]);
 
   const removeItem = (id) => {
-    // Prevent removing the very last row — at least one item is required
     if (items.length === 1) {
-      window.alert("At least one item is required.");
+      alert("At least one item is required.");
       return;
     }
     setItems((prev) => prev.filter((item) => item.id !== id));
@@ -68,41 +59,35 @@ export default function AddCosplayScreen({ navigation }) {
     );
   };
 
-  // Real-time total: only counts rows where cost can be parsed as a valid number
   const totalCost = items.reduce(
     (sum, item) => sum + (parseFloat(item.cost) || 0),
     0
   );
 
-  // ── Save ──────────────────────────────────────────────────────────
-
   const saveCosplay = async () => {
-    // ── Validation ────────────────────────────────────────────────
     if (!characterName.trim()) {
-      window.alert("Character name is required.");
+      alert("Character name is required.");
       return;
     }
     if (!deadline.trim()) {
-      window.alert("Deadline is required.");
+      alert("Deadline is required.");
       return;
     }
     if (!imageUrl.trim()) {
-      window.alert("Image URL is required.");
+      alert("Image URL is required.");
       return;
     }
     if (!isValidHttpUrl(imageUrl)) {
-      window.alert("Enter a valid image URL (must start with http/https).");
+      alert("Enter a valid image URL (must start with http/https).");
       return;
     }
 
-    // Every item row must have at least a name; cost defaults to 0 if blank
     const invalidItem = items.find((item) => !item.name.trim());
     if (invalidItem) {
-      window.alert("All item rows must have a name.");
+      alert("All item rows must have a name.");
       return;
     }
 
-    // Normalise cost to a number before storing
     const normalisedItems = items.map((item) => ({
       ...item,
       cost: parseFloat(item.cost) || 0,
@@ -116,271 +101,375 @@ export default function AddCosplayScreen({ navigation }) {
         location: showLocation ? location.trim() : "",
         items: normalisedItems,
       });
-      window.alert("Cosplay saved!");
+      alert("Cosplay saved!");
       navigation.goBack();
     } catch (err) {
       console.error("Save failed:", err);
-      window.alert("Failed to save cosplay: " + (err.message || err));
+      alert("Failed to save cosplay: " + (err.message || err));
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────
+  const FormInput = ({ label, value, onChangeText, placeholder, ...props }) => (
+    <View style={{ marginBottom: spacing[4] }}>
+      <Text
+        style={{
+          fontSize: fontSize.sm,
+          fontWeight: fontWeight.semibold,
+          color: theme.text,
+          marginBottom: spacing[2],
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
+      >
+        {label}
+      </Text>
+      <TextInput
+        style={{
+          backgroundColor: theme.input,
+          borderWidth: 1.5,
+          borderColor: theme.inputBorder,
+          borderRadius: borderRadius.lg,
+          paddingHorizontal: spacing[3],
+          paddingVertical: spacing[3],
+          fontSize: fontSize.base,
+          color: theme.text,
+          ...shadows.sm,
+        }}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={theme.inputPlaceholder}
+        {...props}
+      />
+    </View>
+  );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* ── Character Info ─────────────────────────────────────────── */}
-      <Text style={styles.sectionHeader}>Character Info</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: spacing[4],
+          paddingVertical: spacing[4],
+          paddingBottom: spacing[8],
+        }}
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Header */}
+        <Text
+          style={{
+            fontSize: fontSize["3xl"],
+            fontWeight: fontWeight.bold,
+            color: theme.primary,
+            marginBottom: spacing[1],
+          }}
+        >
+          Create Cosplay
+        </Text>
+        <Text
+          style={{
+            fontSize: fontSize.base,
+            color: theme.textSecondary,
+            marginBottom: spacing[6],
+          }}
+        >
+          Plan your amazing cosplay project
+        </Text>
 
-      {/*
-        Two-column layout: image preview sits on the LEFT at a fixed width
-        so it gets a natural portrait shape, while the three inputs stack
-        on the RIGHT. This prevents the image from stretching full-width
-        and getting awkwardly cropped.
-      */}
-      <View style={styles.characterInfoRow}>
+        {/* Character Info Section */}
+        <View
+          style={{
+            backgroundColor: theme.surfaceLight,
+            borderRadius: borderRadius.xl,
+            padding: spacing[4],
+            marginBottom: spacing[6],
+            ...shadows.md,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: fontSize.lg,
+              fontWeight: fontWeight.bold,
+              color: theme.primary,
+              marginBottom: spacing[4],
+            }}
+          >
+            Character Information
+          </Text>
 
-        {/* Left column: image preview */}
-        <View style={styles.previewColumn}>
-          <Text style={styles.label}>Preview</Text>
-          <Image
-            source={
-              previewBroken || !imageUrl || !isValidHttpUrl(imageUrl)
-                ? placeholder
-                : { uri: imageUrl }
-            }
-            onError={() => setPreviewBroken(true)}
-            style={styles.preview}
-            resizeMode="cover"
-          />
-        </View>
-
-        {/* Right column: text inputs */}
-        <View style={styles.fieldsColumn}>
-          <Text style={styles.label}>Character Name *</Text>
-          <TextInput
-            style={styles.input}
+          <FormInput
+            label="Character Name *"
             value={characterName}
             onChangeText={setCharacterName}
             placeholder="e.g. Himeko from Honkai: Star Rail"
           />
 
-          <Text style={styles.label}>Deadline *</Text>
-          <TextInput
-            style={styles.input}
+          <FormInput
+            label="Deadline *"
             value={deadline}
             onChangeText={setDeadline}
-            placeholder="e.g. 2025-08-15 or August 15, 2025"
+            placeholder="e.g. 2025-08-15 or August 15"
           />
 
-          <Text style={styles.label}>Image URL *</Text>
-          <TextInput
-            style={styles.input}
+          <FormInput
+            label="Image URL *"
             value={imageUrl}
             onChangeText={(text) => {
               setImageUrl(text);
-              // Reset the broken flag whenever the user types a new URL
               setPreviewBroken(false);
             }}
-            placeholder="https://example.com/cosplay.jpg"
+            placeholder="https://example.com/image.jpg"
             autoCapitalize="none"
-            keyboardType="url"
           />
+
+          {/* Image Preview */}
+          {imageUrl && (
+            <View
+              style={{
+                marginTop: spacing[3],
+                borderRadius: borderRadius.lg,
+                overflow: "hidden",
+                ...shadows.md,
+              }}
+            >
+              <Image
+                source={previewBroken || !isValidHttpUrl(imageUrl) ? placeholder : { uri: imageUrl }}
+                onError={() => setPreviewBroken(true)}
+                style={{ width: "100%", height: 200 }}
+                resizeMode="cover"
+              />
+            </View>
+          )}
         </View>
 
-      </View>
-
-      {/* ── Optional Address ───────────────────────────────────────── */}
-      <View style={styles.sectionRow}>
-        <Text style={styles.sectionHeader}>Address / Location</Text>
-        {!showLocation && (
-          <Button
-            title="+ Add Address"
-            bgColor="bg-yellow-500"
-            onPress={() => setShowLocation(true)}
-            style={styles.inlineButton}
-          />
-        )}
-      </View>
-
-      {showLocation && (
-        <>
-          <TextInput
-            style={styles.input}
-            value={location}
-            onChangeText={setLocation}
-            placeholder="e.g. SM North EDSA, Quezon City"
-          />
-          <Button
-            title="Remove Address"
-            bgColor="bg-red-500"
-            onPress={() => {
-              setShowLocation(false);
-              setLocation("");
+        {/* Location Section */}
+        <View
+          style={{
+            backgroundColor: theme.surfaceLight,
+            borderRadius: borderRadius.xl,
+            padding: spacing[4],
+            marginBottom: spacing[6],
+            ...shadows.md,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: spacing[3],
             }}
-            style={{ marginBottom: 10 }}
-          />
-        </>
-      )}
+          >
+            <Text
+              style={{
+                fontSize: fontSize.lg,
+                fontWeight: fontWeight.bold,
+                color: theme.text,
+              }}
+            >
+              Location (Optional)
+            </Text>
+            {!showLocation && (
+              <Button
+                title="+ Add"
+                variant="outline"
+                size="sm"
+                onPress={() => setShowLocation(true)}
+              />
+            )}
+          </View>
 
-      {/* ── Items ──────────────────────────────────────────────────── */}
-      <View style={styles.sectionRow}>
-        <Text style={styles.sectionHeader}>Items *</Text>
-        <Button
-          title="+ Add Item"
-          bgColor="bg-indigo-500"
-          onPress={addItem}
-          style={styles.inlineButton}
-        />
-      </View>
+          {showLocation && (
+            <>
+              <FormInput
+                label="Location"
+                value={location}
+                onChangeText={setLocation}
+                placeholder="e.g. SM North EDSA, Quezon City"
+              />
+              <Button
+                title="Remove Location"
+                variant="danger"
+                size="sm"
+                fullWidth={true}
+                onPress={() => {
+                  setShowLocation(false);
+                  setLocation("");
+                }}
+              />
+            </>
+          )}
+        </View>
 
-      {/* Column headers */}
-      <View style={styles.itemHeaderRow}>
-        <Text style={[styles.itemHeaderCell, { flex: 2 }]}>Item Name</Text>
-        <Text style={[styles.itemHeaderCell, { flex: 1 }]}>Cost (₱)</Text>
-        <Text style={[styles.itemHeaderCell, { width: 70 }]}>Remove</Text>
-      </View>
+        {/* Items Section */}
+        <View>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: spacing[4],
+            }}
+          >
+            <Text
+              style={{
+                fontSize: fontSize.lg,
+                fontWeight: fontWeight.bold,
+                color: theme.primary,
+              }}
+            >
+              Shopping List *
+            </Text>
+            <Button
+              title="+ Add Item"
+              variant="secondary"
+              size="sm"
+              onPress={addItem}
+            />
+          </View>
 
-      {items.map((item, index) => (
-        <View key={item.id} style={styles.itemRow}>
-          <TextInput
-            style={[styles.input, { flex: 2, marginBottom: 0, marginRight: 6 }]}
-            value={item.name}
-            onChangeText={(val) => updateItem(item.id, "name", val)}
-            placeholder={`e.g. Wig`}
-          />
-          <TextInput
-            style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 6 }]}
-            value={item.cost}
-            onChangeText={(val) => updateItem(item.id, "cost", val)}
-            placeholder="0"
-            keyboardType="numeric"
+          {items.map((item, index) => (
+            <View
+              key={item.id}
+              style={{
+                backgroundColor: theme.surfaceLight,
+                borderRadius: borderRadius.lg,
+                padding: spacing[3],
+                marginBottom: spacing[3],
+                ...shadows.sm,
+              }}
+            >
+              <View style={{ flexDirection: "row", gap: spacing[2], alignItems: "flex-start" }}>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: fontSize.xs,
+                      fontWeight: fontWeight.semibold,
+                      color: theme.textSecondary,
+                      marginBottom: spacing[1],
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Item Name
+                  </Text>
+                  <TextInput
+                    style={{
+                      backgroundColor: theme.input,
+                      borderWidth: 1,
+                      borderColor: theme.inputBorder,
+                      borderRadius: borderRadius.md,
+                      paddingHorizontal: spacing[2],
+                      paddingVertical: spacing[2],
+                      fontSize: fontSize.base,
+                      color: theme.text,
+                    }}
+                    value={item.name}
+                    onChangeText={(val) => updateItem(item.id, "name", val)}
+                    placeholder="e.g. Wig"
+                    placeholderTextColor={theme.inputPlaceholder}
+                  />
+                </View>
+
+                <View style={{ width: 90 }}>
+                  <Text
+                    style={{
+                      fontSize: fontSize.xs,
+                      fontWeight: fontWeight.semibold,
+                      color: theme.textSecondary,
+                      marginBottom: spacing[1],
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Cost (₱)
+                  </Text>
+                  <TextInput
+                    style={{
+                      backgroundColor: theme.input,
+                      borderWidth: 1,
+                      borderColor: theme.inputBorder,
+                      borderRadius: borderRadius.md,
+                      paddingHorizontal: spacing[2],
+                      paddingVertical: spacing[2],
+                      fontSize: fontSize.base,
+                      color: theme.text,
+                    }}
+                    value={item.cost}
+                    onChangeText={(val) => updateItem(item.id, "cost", val)}
+                    placeholder="0"
+                    placeholderTextColor={theme.inputPlaceholder}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <Button
+                  title="✕"
+                  variant="danger"
+                  size="sm"
+                  onPress={() => removeItem(item.id)}
+                  style={{ marginTop: spacing[6] }}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Total Cost Summary */}
+        <View
+          style={{
+            backgroundColor: theme.primaryLighter,
+            borderRadius: borderRadius.xl,
+            padding: spacing[4],
+            marginVertical: spacing[6],
+            ...shadows.md,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: fontSize.xs,
+              fontWeight: fontWeight.semibold,
+              color: theme.primaryDark,
+              textTransform: "uppercase",
+              marginBottom: spacing[2],
+            }}
+          >
+            Total Budget
+          </Text>
+          <Text
+            style={{
+              fontSize: fontSize["3xl"],
+              fontWeight: fontWeight.bold,
+              color: theme.primary,
+            }}
+          >
+            ₱{totalCost.toFixed(2)}
+          </Text>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={{ flexDirection: "row", gap: spacing[2] }}>
+          <Button
+            title="Cancel"
+            variant="outline"
+            size="lg"
+            fullWidth={true}
+            onPress={() => navigation.goBack()}
+            style={{ flex: 1 }}
           />
           <Button
-            title="✕"
-            bgColor="bg-red-500"
-            onPress={() => removeItem(item.id)}
-            style={styles.removeButton}
+            title="Create"
+            variant="primary"
+            size="lg"
+            fullWidth={true}
+            onPress={saveCosplay}
+            style={{ flex: 1 }}
           />
         </View>
-      ))}
-
-      {/* ── Live Total ─────────────────────────────────────────────── */}
-      <View style={styles.totalContainer}>
-        <Text style={styles.totalLabel}>Total Cost</Text>
-        <Text style={styles.totalAmount}>₱{totalCost.toFixed(2)}</Text>
-      </View>
-
-      {/* ── Save ───────────────────────────────────────────────────── */}
-      <Button
-        title="Save Cosplay"
-        bgColor="bg-green-500"
-        onPress={saveCosplay}
-        style={{ marginTop: 20, marginBottom: 40 }}
-      />
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 15,
-  },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  sectionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  inlineButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  label: {
-    fontWeight: "600",
-    color: "#374151",
-    marginTop: 6,
-    marginBottom: 4,
-    fontSize: 13,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 14,
-    color: "#111827",
-    backgroundColor: "#fafafa",
-  },
-  // Two-column row: image left, inputs right
-  characterInfoRow: {
-    flexDirection: "row",
-    gap: 14,
-    alignItems: "flex-start",
-  },
-  previewColumn: {
-    width: 180,           // Fixed width keeps the image portrait-shaped
-    flexShrink: 0,        // Never allow it to squash below this width
-  },
-  fieldsColumn: {
-    flex: 1,              // Takes all remaining horizontal space
-  },
-  preview: {
-    width: "100%",
-    height: 240,          // Taller than wide → natural portrait aspect ratio
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  // Items table
-  itemHeaderRow: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  itemHeaderCell: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#6b7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  itemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  removeButton: {
-    width: 60,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-  },
-  // Total
-  totalContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 14,
-    padding: 14,
-    backgroundColor: "#eff6ff",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
-  },
-  totalLabel: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1e40af",
-  },
-  totalAmount: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#1d4ed8",
+    flex: 1,
   },
 });

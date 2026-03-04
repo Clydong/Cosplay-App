@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
 import {
   collection,
@@ -18,13 +19,13 @@ import { useFocusEffect } from "@react-navigation/native";
 import { db } from "../firebaseConfig";
 import CosplayCard from "../components/CosplayCard";
 import Button from "../components/Button";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function HomeScreen({ navigation }) {
+  console.log('HomeScreen rendered');
+  const { theme, spacing, fontSize, fontWeight } = useTheme();
   const [cosplays, setCosplays] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  // ── Fetch ─────────────────────────────────────────────────────────
-
   const fetchCosplays = async () => {
     setLoading(true);
     try {
@@ -36,142 +37,176 @@ export default function HomeScreen({ navigation }) {
       setCosplays(list);
     } catch (err) {
       console.error("Fetch failed:", err);
-      if (typeof window !== "undefined")
-        window.alert("Failed to load cosplays: " + (err.message || err));
     } finally {
       setLoading(false);
     }
   };
 
-  // Refetch every time the screen comes into focus (i.e. after add/edit)
   useFocusEffect(
     React.useCallback(() => {
       fetchCosplays();
     }, [])
   );
 
-  // ── Optimistic item-toggle handler ────────────────────────────────
-  // CosplayCard already writes the Firestore update itself; this callback
-  // allows HomeScreen to update its local state immediately so the UI
-  // reflects the checkbox change without waiting for a full re-fetch.
-  const handleItemToggle = (cosplayId, updatedItems) => {
-    setCosplays((prev) =>
-      prev.map((c) =>
-        c.id === cosplayId ? { ...c, items: updatedItems } : c
-      )
-    );
-  };
-
-  // ── Delete ────────────────────────────────────────────────────────
-
   const deleteCosplay = async (id) => {
-    const confirmed =
-      typeof window !== "undefined"
-        ? window.confirm("Are you sure you want to delete this cosplay?")
-        : true;
-    if (!confirmed) return;
-
     try {
       await deleteDoc(doc(db, "cosplays", id));
-      // Remove from local state immediately for a snappy feel
       setCosplays((prev) => prev.filter((c) => c.id !== id));
-      if (typeof window !== "undefined") window.alert("Cosplay deleted.");
     } catch (err) {
       console.error("Delete failed:", err);
-      if (typeof window !== "undefined")
-        window.alert("Delete failed: " + (err.message || err));
     }
   };
 
-  // ── Render item ───────────────────────────────────────────────────
+  const onEditCosplay = (cosplay) => {
+    navigation.navigate("Edit Cosplay", { cosplay });
+  };
 
   const renderItem = ({ item }) => (
     <CosplayCard
       cosplay={item}
-      onEdit={() => navigation.navigate("Edit Cosplay", { cosplay: item })}
+      onEdit={() => onEditCosplay(item)}
       onDelete={() => deleteCosplay(item.id)}
-      onItemToggle={handleItemToggle}
+      onItemToggle={(cosplayId, updatedItems) => {
+        setCosplays((prev) =>
+          prev.map((c) =>
+            c.id === cosplayId ? { ...c, items: updatedItems } : c
+          )
+        );
+      }}
     />
   );
 
-  // ── Empty / Loading states ────────────────────────────────────────
-
-  const ListEmpty = () => {
-    if (loading) return null; // spinner shown by ListHeaderComponent
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No cosplays yet.</Text>
-        <Text style={styles.emptySubText}>
-          Tap "Add New Cosplay" to start tracking your build!
-        </Text>
-      </View>
-    );
-  };
-
-  // ── Full render ───────────────────────────────────────────────────
+  const ListEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Text
+        style={{
+          fontSize: fontSize["3xl"],
+          marginBottom: spacing[3],
+        }}
+      >
+        ✨
+      </Text>
+      <Text
+        style={{
+          fontSize: fontSize.xl,
+          fontWeight: fontWeight.bold,
+          color: theme.text,
+          marginBottom: spacing[2],
+          textAlign: "center",
+        }}
+      >
+        No Cosplays Yet
+      </Text>
+      <Text
+        style={{
+          fontSize: fontSize.base,
+          color: theme.textSecondary,
+          marginBottom: spacing[4],
+          textAlign: "center",
+          paddingHorizontal: spacing[4],
+        }}
+      >
+        Start planning your next cosplay adventure by creating a new cosplay project!
+      </Text>
+      <Button
+        title="Create Your First Cosplay"
+        variant="primary"
+        size="lg"
+        onPress={() => navigation.navigate("Add Cosplay")}
+      />
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header */}
+      <View
+        style={{
+          paddingHorizontal: spacing[4],
+          paddingVertical: spacing[4],
+          backgroundColor: theme.primaryLighter,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: fontSize["3xl"],
+            fontWeight: fontWeight.bold,
+            color: theme.primary,
+            marginBottom: spacing[1],
+          }}
+        >
+          Cosplay Tracker
+        </Text>
+        <Text
+          style={{
+            fontSize: fontSize.base,
+            color: theme.textSecondary,
+          }}
+        >
+          Plan, budget, and create amazing cosplays
+        </Text>
+      </View>
+
+      {/* Content */}
       <FlatList
         data={cosplays}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         style={styles.flatList}
-        contentContainerStyle={styles.contentContainer}
-        scrollEnabled={true}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={true}
-        nestedScrollEnabled={true}
+        contentContainerStyle={{ paddingHorizontal: spacing[4], paddingVertical: spacing[4] }}
         ListEmptyComponent={ListEmpty}
         ListHeaderComponent={
-          <View>
-            <Button
-              title="＋ Add New Cosplay"
-              bgColor="bg-green-500"
-              onPress={() => navigation.navigate("Add Cosplay")}
-              style={{ marginBottom: 15 }}
-            />
-            {loading && (
-              <ActivityIndicator
-                size="large"
-                color="#6366f1"
-                style={{ marginBottom: 20 }}
-              />
-            )}
-          </View>
+          loading ? (
+            <View style={{ alignItems: "center", paddingVertical: spacing[6] }}>
+              <ActivityIndicator size="large" color={theme.primary} />
+            </View>
+          ) : null
         }
+        scrollEnabled={true}
       />
-    </View>
+
+      {/* Floating Action Button */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: spacing[6],
+          right: spacing[4],
+          zIndex: 10,
+        }}
+        pointerEvents="box-none"
+      >
+        <Button
+          title="＋"
+          variant="primary"
+          size="lg"
+          onPress={() => navigation.navigate("Add Cosplay")}
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
     ...Platform.select({ web: {}, default: {} }),
   },
   flatList: {
     flex: 1,
     width: "100%",
   },
-  contentContainer: {
-    padding: 15,
-    paddingBottom: 40,
-  },
   emptyContainer: {
     alignItems: "center",
-    marginTop: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#6b7280",
-  },
-  emptySubText: {
-    fontSize: 13,
-    color: "#9ca3af",
-    marginTop: 6,
-    textAlign: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
   },
 });
