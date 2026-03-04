@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   SafeAreaView,
+  Platform,
 } from "react-native";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "../firebaseConfig";
@@ -144,15 +145,21 @@ export default function AddCosplayScreen({ navigation }) {
     </View>
   );
 
+  // choose a wrapper that won't block scrolling on web
+  const Container = Platform.OS === 'web' ? View : SafeAreaView;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <Container style={[styles.container, { backgroundColor: theme.background }]}> 
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
+          flexGrow: 1,
           paddingHorizontal: spacing[4],
           paddingVertical: spacing[4],
           paddingBottom: spacing[8],
         }}
         showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <Text
@@ -464,7 +471,7 @@ export default function AddCosplayScreen({ navigation }) {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Container> 
   );
 }
 

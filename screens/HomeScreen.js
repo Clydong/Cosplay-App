@@ -117,8 +117,10 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 
+  const Container = Platform.OS === 'web' ? View : SafeAreaView;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <Container style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View
         style={{
@@ -154,8 +156,8 @@ export default function HomeScreen({ navigation }) {
         data={cosplays}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        style={styles.flatList}
-        contentContainerStyle={{ paddingHorizontal: spacing[4], paddingVertical: spacing[4] }}
+        style={[styles.flatList, { flex: 1 }]}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing[4], paddingVertical: spacing[4] }}
         ListEmptyComponent={ListEmpty}
         ListHeaderComponent={
           loading ? (
@@ -165,6 +167,8 @@ export default function HomeScreen({ navigation }) {
           ) : null
         }
         scrollEnabled={true}
+        nestedScrollEnabled={true}
+        overScrollMode="always"
       />
 
       {/* Floating Action Button */}
@@ -191,7 +195,7 @@ export default function HomeScreen({ navigation }) {
           }}
         />
       </View>
-    </SafeAreaView>
+      </Container>
   );
 }
 

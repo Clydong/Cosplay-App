@@ -1,6 +1,6 @@
 // App.js
 import React, { useEffect } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
@@ -50,6 +50,14 @@ function AppNavigator() {
 
 export default function App() {
   console.log('App root rendering');
+
+  // ensure web pages can scroll with wheel/trackpad
+  React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      document.body.style.overflow = 'auto';
+    }
+  }, []);
+
   return (
     <ThemeProvider>
       <AppNavigator />
